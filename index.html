@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>拼豆助手</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --main:#6c4bf4; --main-dark:#4a2fb5; --bg:#f6f4fb; --card:#ffffff;
+    --text:#2c2c34; --muted:#8a8a96; --line:#e6e1f2; --green:#1e8449; --red:#d6336c; --orange:#e67e22;
+  }
+  html,body{ height:100%; }
+  body{ font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); font-size:16px; }
+  header{ background:var(--main); color:#fff; padding:14px 16px 10px; position:sticky; top:0; z-index:20; }
+  header h1{ font-size:19px; font-weight:700; letter-spacing:1px; }
+  header .sub{ font-size:12px; opacity:.85; margin-top:2px; }
+  main{ padding:12px 12px 84px; max-width:680px; margin:0 auto; }
+  .page{ display:none; } .page.active{ display:block; }
+  nav{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); display:flex; z-index:30; }
+  nav button{ flex:1; background:none; border:none; padding:8px 0 10px; font-size:13px; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav button .ico{ font-size:21px; line-height:1; }
+  nav button.on{ color:var(--main); font-weight:700; }
+  .card{ background:var(--card); border-radius:12px; border:1px solid var(--line); padding:12px; margin-bottom:10px; }
+  .btn{ display:block; width:100%; padding:13px; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; margin-top:10px; }
+  .btn-main{ background:var(--main); color:#fff; } .btn-main:active{ background:var(--main-dark); }
+  .btn-ghost{ background:#fff; color:var(--text); border:1px solid var(--line); }
+  .btn-green{ background:var(--green); color:#fff; }
+  .btn-row{ display:flex; gap:10px; } .btn-row .btn{ margin-top:10px; }
+  label{ display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input,select{ width:100%; padding:11px; border:1px solid var(--line); border-radius:8px; font-size:16px; background:#fff; }
+  .hint{ font-size:12px; color:var(--muted); line-height:1.6; margin-top:8px; }
+  .li{ display:flex; justify-content:space-between; align-items:center; padding:11px 2px; border-bottom:1px solid var(--line); }
+  .li:last-child{ border-bottom:none; }
+  .li .t small{ display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  .li .amt{ font-weight:700; }
+  .del{ color:var(--red); background:none; border:none; font-size:13px; cursor:pointer; padding:4px 6px; }
+  .edit{ color:var(--orange); background:none; border:none; font-size:13px; cursor:pointer; padding:4px 6px; }
+  .empty{ text-align:center; color:var(--muted); padding:28px 0; font-size:14px; }
+  .seg{ display:flex; gap:8px; flex-wrap:wrap; }
+  .seg label{ display:flex; align-items:center; gap:5px; font-size:14px; color:var(--text); margin:0; background:#fff; border:1px solid var(--line); border-radius:999px; padding:7px 12px; cursor:pointer; }
+  .seg input{ width:auto; }
+  /* 图纸画布 */
+  .canvas-wrap{ overflow:auto; background:#fffdf7; border:1px solid var(--line); border-radius:12px; padding:8px; text-align:center; }
+  #patCanvas{ image-rendering:pixelated; max-width:100%; touch-action:manipulation; }
+  #patCanvas.editing{ touch-action:none; }
+  .pal-bar{ display:flex; gap:8px; overflow-x:auto; padding:10px 2px; }
+  .sw{ flex:none; width:40px; text-align:center; cursor:pointer; }
+  .sw .dot{ width:34px; height:34px; border-radius:50%; margin:0 auto; border:2px solid rgba(0,0,0,.12); position:relative; }
+  .sw .dot::after{ content:""; position:absolute; left:50%; top:50%; width:12px; height:12px; border-radius:50%; background:rgba(0,0,0,.16); transform:translate(-50%,-50%); }
+  .sw .cd{ font-size:10px; color:var(--muted); margin-top:2px; }
+  .sw.on .dot{ border-color:var(--main); border-width:3px; }
+  .sw.eraser .dot{ background:#fff; }
+  .usage{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .u-chip{ display:flex; align-items:center; gap:5px; background:#fff; border:1px solid var(--line); border-radius:999px; padding:4px 9px 4px 5px; font-size:12px; }
+  .u-chip .dot{ width:16px; height:16px; border-radius:50%; border:1px solid rgba(0,0,0,.15); }
+  /* 图纸库 */
+  .pat-item{ display:flex; gap:10px; align-items:center; padding:10px 2px; border-bottom:1px solid var(--line); }
+  .pat-item:last-child{ border-bottom:none; }
+  .pat-item canvas{ border:1px solid var(--line); border-radius:6px; background:#fffdf7; flex:none; }
+  .pat-item .info{ flex:1; } .pat-item .info small{ color:var(--muted); display:block; font-size:12px; margin-top:2px; }
+  /* 工位计时 */
+  .st-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .st{ background:var(--card); border:2px solid var(--line); border-radius:12px; padding:12px; }
+  .st .no{ font-weight:800; font-size:16px; }
+  .st .tm{ font-size:22px; font-weight:800; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .st .fee{ color:var(--main); font-weight:700; margin-top:2px; }
+  .st .stt{ font-size:12px; color:var(--muted); }
+  .st.running{ border-color:var(--main); }
+  .st.paused{ border-color:var(--orange); background:#fff8ef; }
+  .st .ops{ display:flex; gap:6px; margin-top:8px; }
+  .st .ops button{ flex:1; padding:8px 0; border-radius:8px; border:1px solid var(--line); background:#fff; font-size:14px; cursor:pointer; }
+  .st .ops button.primary{ background:var(--main); color:#fff; border-color:var(--main); font-weight:700; }
+  .st .ops button.warn{ background:var(--orange); color:#fff; border-color:var(--orange); font-weight:700; }
+  .st .ops button.green{ background:var(--green); color:#fff; border-color:var(--green); font-weight:700; }
+  .sum-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:10px; }
+  .sum-box{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 6px; text-align:center; }
+  .sum-box .v{ font-size:19px; font-weight:800; } .sum-box .k{ font-size:12px; color:var(--muted); margin-top:3px; }
+  .overdue{ color:var(--red); font-weight:700; }
+  /* 弹窗 */
+  .mask{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; z-index:50; align-items:flex-end; justify-content:center; }
+  .mask.show{ display:flex; }
+  .sheet{ background:#fff; width:100%; max-width:680px; border-radius:16px 16px 0 0; padding:18px 16px 26px; max-height:86vh; overflow-y:auto; }
+  .sheet h3{ font-size:17px; margin-bottom:6px; }
+  .pay-opt{ display:flex; gap:10px; margin-top:8px; }
+  .pay-opt button{ flex:1; padding:12px; border-radius:10px; border:2px solid var(--line); background:#fff; font-size:16px; cursor:pointer; }
+  .pay-opt button.on{ border-color:var(--green); background:#eafaf1; font-weight:700; }
+  .total-row{ display:flex; justify-content:space-between; font-size:18px; font-weight:800; padding:10px 2px 2px; }
+  .total-row .v{ color:var(--main); }
+  /* 锁屏 */
+  #lockScreen{ position:fixed; inset:0; background:linear-gradient(160deg,#6c4bf4,#4a2fb5); z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; padding:24px; }
+  #lockScreen .logo{ font-size:54px; }
+  #lockScreen h2{ font-size:22px; margin-top:10px; letter-spacing:2px; }
+  #lockTip{ font-size:14px; opacity:.9; margin-top:8px; min-height:20px; text-align:center; }
+  .dots{ display:flex; gap:14px; margin:26px 0 8px; }
+  .dots span{ width:16px; height:16px; border-radius:50%; border:2px solid #fff; display:block; }
+  .dots span.f{ background:#fff; }
+  #lockErr{ color:#ffe08a; font-size:14px; min-height:20px; }
+  .pad{ display:grid; grid-template-columns:repeat(3,76px); gap:14px; margin-top:16px; }
+  .pad button{ height:64px; border-radius:50%; border:1px solid rgba(255,255,255,.5); background:rgba(255,255,255,.08); color:#fff; font-size:24px; cursor:pointer; }
+  .pad button:active{ background:rgba(255,255,255,.25); }
+  .pad button.fn{ font-size:15px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🫘 拼豆助手</h1>
+  <div class="sub">本地运行 · 图纸 / 计时 / 寄存都在这台手机上 · 不联网</div>
+</header>
+
+<main>
+  <!-- 创作页 -->
+  <section class="page active" id="pg-create">
+    <div class="card">
+      <div style="font-weight:700">图片转图纸</div>
+      <label>选择一张图片（照片、头像、动漫图都可以）</label>
+      <input type="file" id="imgFile" accept="image/*" onchange="onImgChosen(this)">
+      <label>图纸宽度（颗）</label>
+      <select id="sizeSel" onchange="genPattern()">
+        <option value="16">16 颗 · 迷你</option>
+        <option value="24">24 颗 · 小</option>
+        <option value="29" selected>29 颗 · 一块标准板</option>
+        <option value="32">32 颗</option>
+        <option value="48">48 颗 · 两块板</option>
+        <option value="58">58 颗 · 两块标准板</option>
+        <option value="64">64 颗 · 大幅</option>
+      </select>
+      <p class="hint">高度会按图片比例自动算。生成后可以在下面改色、看每种颜色要用多少颗。</p>
+    </div>
+    <div class="seg" style="margin-bottom:10px">
+      <label><input type="checkbox" id="codeToggle" onchange="drawPattern()"> 显示色号</label>
+      <label><input type="checkbox" id="editToggle" onchange="toggleEdit()"> 改色模式</label>
+      <label>大小
+        <select id="zoomSel" onchange="drawPattern()" style="width:auto;padding:4px 6px;font-size:14px">
+          <option value="0">适屏</option><option value="10">小</option><option value="16">中</option><option value="22">大</option>
+        </select>
+      </label>
+    </div>
+    <div class="canvas-wrap"><canvas id="patCanvas" width="290" height="290"></canvas></div>
+    <div id="palWrap" style="display:none">
+      <div style="font-weight:700;margin-top:10px">选颜色点格子改色（橡皮＝留空）</div>
+      <div class="pal-bar" id="palBar"></div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <div style="font-weight:700">用豆清单</div>
+      <div id="usageBox"><div class="empty">先选一张图片生成图纸</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="openSavePattern()">保存到图纸库</button>
+      <button class="btn btn-main" onclick="exportPng()">导出图纸图片</button>
+    </div>
+  </section>
+
+  <!-- 图纸库页 -->
+  <section class="page" id="pg-lib">
+    <div class="card"><div id="patList"></div></div>
+    <p class="hint">点「打开」把图纸载入创作页，可以照着拼、改色、看用量。</p>
+  </section>
+
+  <!-- 计时页 -->
+  <section class="page" id="pg-time">
+    <div class="st-grid" id="stGrid"></div>
+    <div class="card" style="margin-top:10px">
+      <div style="font-weight:700">今日账单</div>
+      <div id="billList"></div>
+      <div class="total-row"><span>今日计时收入</span><span class="v" id="billTotal">¥0.00</span></div>
+    </div>
+    <p class="hint" id="ruleHint"></p>
+  </section>
+
+  <!-- 更多页 -->
+  <section class="page" id="pg-more">
+    <div class="sum-grid">
+      <div class="sum-box"><div class="v" style="color:var(--green)" id="statToday">¥0</div><div class="k">今日收入</div></div>
+      <div class="sum-box"><div class="v" style="color:var(--green)" id="statMonth">¥0</div><div class="k">本月收入</div></div>
+      <div class="sum-box"><div class="v" id="statBills">0</div><div class="k">今日单数</div></div>
+      <div class="sum-box"><div class="v" id="statDeps">0</div><div class="k">寄存中</div></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:4px">半成品寄存</div>
+      <div id="depList"></div>
+      <button class="btn btn-main" onclick="openDepForm()">＋ 登记寄存</button>
+      <p class="hint">寄存超过 7 天会标红提醒。顾客取走时点「取走」。</p>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:4px">计费设置</div>
+      <label>单价（元 / 小时）</label><input id="setPrice" type="number" step="1" min="0">
+      <label>计费方式</label>
+      <select id="setMode">
+        <option value="exact">按分钟精确计费</option>
+        <option value="q15">每 15 分钟一档（不足一档按一档）</option>
+        <option value="q30">每 30 分钟一档（不足一档按一档）</option>
+        <option value="h1">按小时（不足 1 小时按 1 小时）</option>
+      </select>
+      <label>免费暂停时长（分钟 / 每单，超出的暂停时间照常计费）</label><input id="setPauseFree" type="number" step="5" min="0">
+      <button class="btn btn-main" onclick="saveSettings()">保存设置</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:4px">安全设置</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="changePin()">修改密码</button>
+        <button class="btn btn-ghost" onclick="disablePin()">关闭密码</button>
+      </div>
+      <p class="hint">打开应用需要输入 4 位数字密码。密码只存在这台手机上，忘了只能清除应用数据，请务必牢记。</p>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:4px">数据备份</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="exportData()">导出备份</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('impFile').click()">导入备份</button>
+      </div>
+      <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(event)">
+      <p class="hint">图纸、账单、寄存记录都只保存在这台手机里。换手机前先导出备份，再导入恢复。</p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button id="nav-create" class="on" onclick="go('create')"><span class="ico">🎨</span>创作</button>
+  <button id="nav-lib" onclick="go('lib')"><span class="ico">🗂️</span>图纸库</button>
+  <button id="nav-time" onclick="go('time')"><span class="ico">⏱️</span>计时</button>
+  <button id="nav-more" onclick="go('more')"><span class="ico">⚙️</span>更多</button>
+</nav>
+
+<!-- 保存图纸弹窗 -->
+<div class="mask" id="saveMask">
+  <div class="sheet">
+    <h3>保存图纸</h3>
+    <label>图纸名字</label><input id="patName" placeholder="如：皮卡丘、猫咪头像">
+    <button class="btn btn-main" onclick="doSavePattern()">保存</button>
+    <button class="btn btn-ghost" onclick="hide('saveMask')">取消</button>
+  </div>
+</div>
+
+<!-- 结账弹窗 -->
+<div class="mask" id="payMask">
+  <div class="sheet">
+    <h3>结账 · <span id="paySt"></span></h3>
+    <div id="payDetail" style="font-size:14px;color:var(--muted);line-height:1.7"></div>
+    <div class="total-row"><span>应收</span><span class="v" id="payTotal">¥0.00</span></div>
+    <label>收款方式</label>
+    <div class="pay-opt" id="payOpts">
+      <button data-pay="现金" class="on" onclick="pickPay(this)">现金</button>
+      <button data-pay="微信" onclick="pickPay(this)">微信</button>
+      <button data-pay="支付宝" onclick="pickPay(this)">支付宝</button>
+    </div>
+    <label>实收金额（可改）</label>
+    <input type="number" id="payActual" step="0.01" min="0">
+    <button class="btn btn-green" onclick="doCheckout()">确认收款</button>
+    <button class="btn btn-ghost" onclick="hide('payMask')">取消</button>
+  </div>
+</div>
+
+<!-- 寄存表单 -->
+<div class="mask" id="depMask">
+  <div class="sheet">
+    <h3>登记寄存</h3>
+    <label>顾客姓名</label><input id="depName" placeholder="如：王小明">
+    <label>手机尾号</label><input id="depPhone" placeholder="如：1234" maxlength="6">
+    <label>存放位置</label><input id="depShelf" placeholder="如：A架3层、2号柜">
+    <label>备注</label><input id="depNote" placeholder="如：拼了一半的星空图">
+    <button class="btn btn-main" onclick="saveDep()">保存</button>
+    <button class="btn btn-ghost" onclick="hide('depMask')">取消</button>
+  </div>
+</div>
+
+<!-- 锁屏 -->
+<div id="lockScreen" style="display:none">
+  <div class="logo">🫘</div>
+  <h2>拼豆助手</h2>
+  <div id="lockTip">输入密码进入</div>
+  <div class="dots" id="lockDots"><span></span><span></span><span></span><span></span></div>
+  <div id="lockErr"></div>
+  <div class="pad">
+    <button onclick="padPress('1')">1</button><button onclick="padPress('2')">2</button><button onclick="padPress('3')">3</button>
+    <button onclick="padPress('4')">4</button><button onclick="padPress('5')">5</button><button onclick="padPress('6')">6</button>
+    <button onclick="padPress('7')">7</button><button onclick="padPress('8')">8</button><button onclick="padPress('9')">9</button>
+    <button class="fn" onclick="padPress('clear')">清空</button><button onclick="padPress('0')">0</button><button class="fn" onclick="padPress('del')">删除</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= 色板（内置核心色卡） ================= */
+var PALETTE = [
+  ["01","纯白","#FFFFFF"],["02","奶白","#FFF6E9"],["03","米黄","#F7E7B4"],["04","浅黄","#FFE873"],
+  ["05","柠檬黄","#FFD60A"],["06","金黄","#FFB703"],["07","橙色","#FB8500"],["08","橘红","#F4511E"],
+  ["09","大红","#D90429"],["10","深红","#9D0208"],["11","酒红","#6A040F"],["12","桃色","#FFB4A2"],
+  ["13","浅粉","#FFC8DD"],["14","粉色","#FF8FA3"],["15","玫红","#E75480"],["16","紫红","#C9184A"],
+  ["17","浅紫","#C77DFF"],["18","紫色","#7B2CBF"],["19","深紫","#3C096C"],["20","浅蓝","#A2D2FF"],
+  ["21","天蓝","#56CCF2"],["22","宝蓝","#2D6CDF"],["23","深蓝","#1D3557"],["24","藏青","#14213D"],
+  ["25","薄荷绿","#95D5B2"],["26","浅绿","#B5E48C"],["27","草绿","#6ABF45"],["28","绿色","#1E9E50"],
+  ["29","深绿","#1B4332"],["30","墨绿","#123524"],["31","浅棕","#DDB892"],["32","棕色","#B08968"],
+  ["33","深棕","#7F5539"],["34","咖啡","#4E342E"],["35","浅灰","#CED4DA"],["36","灰色","#868E96"],
+  ["37","深灰","#495057"],["38","黑色","#212529"],["39","荧光黄","#E9FF70"],["40","荧光绿","#7CFF6B"],
+  ["41","荧光粉","#FF70A6"],["42","荧光橙","#FF9770"],["43","淡紫","#BDB2FF"],["44","青色","#48CAE4"],
+  ["45","湖蓝","#0096C7"],["46","卡其","#B7A261"]
+];
+var PAL_RGB = PALETTE.map(function(p){
+  var h = p[2]; return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+});
+function palIdxByCode(code){ for(var i=0;i<PALETTE.length;i++) if(PALETTE[i][0]===code) return i; return 0; }
+function nearestColor(r,g,b){
+  var best = 0, bd = 1e18;
+  for(var i=0;i<PAL_RGB.length;i++){
+    var dr = r-PAL_RGB[i][0], dg = g-PAL_RGB[i][1], db = b-PAL_RGB[i][2];
+    var d = dr*dr*0.30 + dg*dg*0.59 + db*db*0.11;
+    if(d<bd){ bd = d; best = i; }
+  }
+  return best;
+}
+function textOn(hex){
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return (0.299*r + 0.587*g + 0.114*b) > 150 ? "#333" : "#fff";
+}
+
+/* ================= 状态 ================= */
+var KEY = "pindou_app_v1";
+var state = load();
+var cur = null;              // 当前图纸 {w,h,cells}
+var srcImg = null;
+var selColor = 13;           // 当前画笔颜色（色板下标），-2 = 橡皮
+var payStation = null, payMethod = "现金";
+
+function seed(){
+  var stations = []; for(var i=1;i<=10;i++) stations.push({no:i, status:"idle", start:0, pausedAccum:0, pauseStart:0});
+  var st = { patterns:[], stations:stations, bills:[], deposits:[],
+             settings:{ price:20, mode:"q15", pauseFree:60 }, nextPat:1, nextBill:1, nextDep:1 };
+  // 示例图纸：爱心
+  var rows = [
+    "...XX...XX...",
+    "..XPPX.XPPX..",
+    ".XPPPPPPPPPX.",
+    ".XPPPPPPPPPX.",
+    "..XPPPPPPPX..",
+    "...XPPPPPX...",
+    "....XPPPX....",
+    ".....XPX.....",
+    "......X......"
+  ];
+  var xi = palIdxByCode("15"), pi = palIdxByCode("14"), cells = [];
+  rows.forEach(function(r){ for(var i=0;i<r.length;i++){ var ch = r.charAt(i); cells.push(ch==="X"? xi : ch==="P"? pi : -1); } });
+  st.patterns.push({ id: st.nextPat++, name:"示例 · 爱心", w:13, h:9, cells:cells, ts: Date.now() });
+  return st;
+}
+function load(){
+  try{ var s = localStorage.getItem(KEY); if(s){ var d = JSON.parse(s); if(d && d.stations && d.settings) return d; } }catch(e){}
+  var d = seed(); try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){}
+  return d;
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function money(n){ return "¥" + Number(n||0).toFixed(2); }
+function todayStr(d){ d = d||new Date(); var m=("0"+(d.getMonth()+1)).slice(-2), dd=("0"+d.getDate()).slice(-2); return d.getFullYear()+"-"+m+"-"+dd; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function show(id){ document.getElementById(id).classList.add("show"); }
+function hide(id){ document.getElementById(id).classList.remove("show"); }
+function fmtDur(ms){
+  if(ms<0) ms = 0; var s = Math.floor(ms/1000);
+  var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
+  return ("0"+h).slice(-2)+":"+("0"+m).slice(-2)+":"+("0"+ss).slice(-2);
+}
+function fmtMin(ms){ return Math.round(ms/6000)/10; }
+
+function go(p){
+  var pages = ["create","lib","time","more"];
+  for(var i=0;i<pages.length;i++){
+    document.getElementById("pg-"+pages[i]).classList.toggle("active", pages[i]===p);
+    document.getElementById("nav-"+pages[i]).classList.toggle("on", pages[i]===p);
+  }
+  if(p==="lib") renderLib();
+  if(p==="time"){ renderStations(); renderBills(); }
+  if(p==="more") renderMore();
+}
+
+/* ================= 图片转图纸 ================= */
+function onImgChosen(input){
+  var f = input.files && input.files[0]; if(!f) return;
+  var url = URL.createObjectURL(f);
+  var img = new Image();
+  img.onload = function(){ srcImg = img; genPattern(); };
+  img.onerror = function(){ alert("这张图片读不了，换一张试试"); };
+  img.src = url;
+}
+function genPattern(){
+  if(!srcImg) return;
+  var cols = parseInt(document.getElementById("sizeSel").value, 10);
+  var rows = Math.max(8, Math.min(80, Math.round(cols * srcImg.height / srcImg.width)));
+  var c = document.createElement("canvas"); c.width = cols; c.height = rows;
+  var x = c.getContext("2d"); x.drawImage(srcImg, 0, 0, cols, rows);
+  var data;
+  try{ data = x.getImageData(0, 0, cols, rows).data; }catch(e){ alert("图片读取失败"); return; }
+  var cells = [];
+  for(var i=0;i<cols*rows;i++){
+    var o = i*4;
+    if(data[o+3] < 110) cells.push(-1);
+    else cells.push(nearestColor(data[o], data[o+1], data[o+2]));
+  }
+  cur = { w:cols, h:rows, cells:cells };
+  drawPattern(); renderUsage();
+}
+function cellSize(){
+  var z = document.getElementById("zoomSel").value;
+  if(z !== "0") return parseInt(z, 10);
+  if(!cur) return 10;
+  var avail = Math.min(window.innerWidth - 50, 620);
+  return Math.max(6, Math.min(22, Math.floor(avail / cur.w)));
+}
+function drawPattern(){
+  var cv = document.getElementById("patCanvas");
+  var ctx = cv.getContext("2d");
+  if(!cur){
+    cv.width = 290; cv.height = 200;
+    ctx.fillStyle = "#fffdf7"; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.fillStyle = "#b9b3a8"; ctx.font = "15px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("选一张图片，这里就会出现拼豆图纸", 145, 100);
+    return;
+  }
+  var cs = cellSize();
+  cv.width = cur.w * cs; cv.height = cur.h * cs;
+  paintGrid(ctx, cur, cs, document.getElementById("codeToggle").checked);
+}
+function paintGrid(ctx, pat, cs, withCodes){
+  ctx.fillStyle = "#fffdf7"; ctx.fillRect(0, 0, pat.w*cs, pat.h*cs);
+  for(var y=0;y<pat.h;y++){
+    for(var x=0;x<pat.w;x++){
+      var idx = pat.cells[y*pat.w + x];
+      var cx = x*cs, cy = y*cs;
+      ctx.strokeStyle = "rgba(0,0,0,0.07)"; ctx.lineWidth = 1;
+      ctx.strokeRect(cx+0.5, cy+0.5, cs-1, cs-1);
+      if(idx < 0) continue;
+      var hex = PALETTE[idx][2];
+      ctx.fillStyle = hex;
+      ctx.beginPath();
+      ctx.arc(cx + cs/2, cy + cs/2, cs*0.42, 0, Math.PI*2);
+      ctx.fill();
+      if(withCodes && cs >= 13){
+        ctx.fillStyle = textOn(hex);
+        ctx.font = "bold " + Math.max(8, Math.floor(cs*0.42)) + "px sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(PALETTE[idx][0], cx + cs/2, cy + cs/2 + 0.5);
+      } else {
+        ctx.fillStyle = "rgba(0,0,0,0.16)";
+        ctx.beginPath();
+        ctx.arc(cx + cs/2, cy + cs/2, cs*0.15, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+}
+function renderUsage(){
+  var box = document.getElementById("usageBox");
+  if(!cur){ box.innerHTML = '<div class="empty">先选一张图片生成图纸</div>'; return; }
+  var counts = {}, total = 0;
+  cur.cells.forEach(function(idx){ if(idx>=0){ counts[idx] = (counts[idx]||0)+1; total++; } });
+  var keys = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; });
+  var html = '<div style="font-size:14px;margin-bottom:4px">共 <b>' + total + '</b> 颗 · ' + keys.length + ' 种颜色 · 尺寸 ' + cur.w + '×' + cur.h + '</div><div class="usage">';
+  keys.forEach(function(k){
+    var p = PALETTE[k];
+    html += '<span class="u-chip"><span class="dot" style="background:' + p[2] + '"></span>' + p[0] + ' ' + esc(p[1]) + ' × ' + counts[k] + '</span>';
+  });
+  box.innerHTML = html + '</div>';
+}
+
+/* ================= 改色编辑 ================= */
+function buildPalBar(){
+  var bar = document.getElementById("palBar"); bar.innerHTML = "";
+  var er = document.createElement("div");
+  er.className = "sw eraser" + (selColor===-2? " on":"");
+  er.innerHTML = '<div class="dot"></div><div class="cd">橡皮</div>';
+  er.onclick = function(){ selColor = -2; buildPalBar(); };
+  bar.appendChild(er);
+  PALETTE.forEach(function(p, i){
+    var d = document.createElement("div");
+    d.className = "sw" + (selColor===i? " on":"");
+    d.innerHTML = '<div class="dot" style="background:' + p[2] + '"></div><div class="cd">' + p[0] + '</div>';
+    d.onclick = function(){ selColor = i; buildPalBar(); };
+    bar.appendChild(d);
+  });
+}
+function toggleEdit(){
+  var on = document.getElementById("editToggle").checked;
+  document.getElementById("palWrap").style.display = on? "block":"none";
+  document.getElementById("patCanvas").classList.toggle("editing", on);
+  if(on) buildPalBar();
+}
+function canvasCell(ev){
+  var cv = document.getElementById("patCanvas");
+  var r = cv.getBoundingClientRect();
+  var px = (ev.clientX - r.left) * (cv.width / r.width);
+  var py = (ev.clientY - r.top) * (cv.height / r.height);
+  var cs = cellSize();
+  var x = Math.floor(px / cs), y = Math.floor(py / cs);
+  if(!cur || x<0 || y<0 || x>=cur.w || y>=cur.h) return -1;
+  return y*cur.w + x;
+}
+function paintAt(ev){
+  if(!document.getElementById("editToggle").checked || !cur) return;
+  var i = canvasCell(ev); if(i<0) return;
+  cur.cells[i] = (selColor === -2)? -1 : selColor;
+  drawPattern(); renderUsage();
+}
+(function(){
+  var cv = document.getElementById("patCanvas");
+  var painting = false;
+  cv.addEventListener("pointerdown", function(ev){ painting = true; paintAt(ev); });
+  cv.addEventListener("pointermove", function(ev){ if(painting) paintAt(ev); });
+  window.addEventListener("pointerup", function(){ painting = false; });
+})();
+
+/* ================= 图纸库 ================= */
+function openSavePattern(){
+  if(!cur){ alert("先生成一张图纸再保存"); return; }
+  document.getElementById("patName").value = "";
+  show("saveMask");
+}
+function doSavePattern(){
+  var name = document.getElementById("patName").value.trim() || ("图纸 " + state.nextPat);
+  state.patterns.push({ id: state.nextPat++, name:name, w:cur.w, h:cur.h, cells: cur.cells.slice(), ts: Date.now() });
+  save(); hide("saveMask"); alert("已存入图纸库");
+}
+function renderLib(){
+  var box = document.getElementById("patList"); box.innerHTML = "";
+  if(!state.patterns.length){ box.innerHTML = '<div class="empty">图纸库是空的，去创作页生成一张吧</div>'; return; }
+  state.patterns.slice().reverse().forEach(function(p){
+    var total = 0; p.cells.forEach(function(i){ if(i>=0) total++; });
+    var item = document.createElement("div"); item.className = "pat-item";
+    var thumb = document.createElement("canvas");
+    var cs = Math.max(2, Math.floor(64 / Math.max(p.w, p.h)));
+    thumb.width = p.w*cs; thumb.height = p.h*cs;
+    paintGrid(thumb.getContext("2d"), p, cs, false);
+    var info = document.createElement("div"); info.className = "info";
+    var d = new Date(p.ts);
+    info.innerHTML = "<b>" + esc(p.name) + "</b><small>" + p.w + "×" + p.h + " · " + total + " 颗 · " + d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2) + "</small>";
+    var open = document.createElement("button"); open.className = "edit"; open.textContent = "打开";
+    open.onclick = function(){ cur = { w:p.w, h:p.h, cells:p.cells.slice() }; go("create"); drawPattern(); renderUsage(); window.scrollTo(0,0); };
+    var del = document.createElement("button"); del.className = "del"; del.textContent = "删";
+    del.onclick = function(){ if(confirm("删除图纸「" + p.name + "」？")){ state.patterns = state.patterns.filter(function(x){ return x.id !== p.id; }); save(); renderLib(); } };
+    item.appendChild(thumb); item.appendChild(info); item.appendChild(open); item.appendChild(del);
+    box.appendChild(item);
+  });
+}
+function exportPng(){
+  if(!cur){ alert("先生成一张图纸"); return; }
+  var cs = 26;
+  var c = document.createElement("canvas"); c.width = cur.w*cs; c.height = cur.h*cs;
+  paintGrid(c.getContext("2d"), cur, cs, document.getElementById("codeToggle").checked);
+  var dataUrl = c.toDataURL("image/png");
+  var fname = "拼豆图纸-" + todayStr() + ".png";
+  if(window.AndroidBridge && AndroidBridge.saveImage){ AndroidBridge.saveImage(fname, dataUrl.split(",")[1]); return; }
+  var a = document.createElement("a"); a.href = dataUrl; a.download = fname; a.click();
+}
+
+/* ================= 工位计时 ================= */
+function getSt(no){ for(var i=0;i<state.stations.length;i++) if(state.stations[i].no===no) return state.stations[i]; return null; }
+function stPausedMs(st, now){
+  var p = st.pausedAccum || 0;
+  if(st.status === "paused" && st.pauseStart) p += now - st.pauseStart;
+  return p;
+}
+function stActiveMs(st, now){
+  if(st.status === "idle") return 0;
+  var total = now - st.start;
+  var effPaused = Math.min(stPausedMs(st, now), (state.settings.pauseFree||0) * 60000);
+  return Math.max(0, total - effPaused);
+}
+function stFee(st, now){
+  var mins = stActiveMs(st, now) / 60000;
+  if(mins <= 0) return 0;
+  var mode = state.settings.mode, billed = mins;
+  if(mode === "q15") billed = Math.ceil(mins/15)*15;
+  else if(mode === "q30") billed = Math.ceil(mins/30)*30;
+  else if(mode === "h1") billed = Math.ceil(mins/60)*60;
+  return billed/60 * state.settings.price;
+}
+function renderStations(){
+  var g = document.getElementById("stGrid"); g.innerHTML = "";
+  var now = Date.now();
+  state.stations.forEach(function(st){
+    var d = document.createElement("div");
+    d.className = "st" + (st.status==="running"? " running": st.status==="paused"? " paused":"");
+    var head = '<div class="no">' + st.no + ' 号工位</div>';
+    if(st.status === "idle"){
+      d.innerHTML = head + '<div class="stt" style="margin-top:6px">空闲</div>' +
+        '<div class="ops"><button class="primary" onclick="stStart(' + st.no + ')">开台计时</button></div>';
+    } else {
+      var label = st.status === "paused"? "已暂停（暂停中不计费额度内）":"计时中";
+      d.innerHTML = head +
+        '<div class="stt">' + label + '</div>' +
+        '<div class="tm" id="tm-' + st.no + '">' + fmtDur(stActiveMs(st, now)) + '</div>' +
+        '<div class="fee" id="fee-' + st.no + '">当前 ' + money(stFee(st, now)) + '</div>' +
+        '<div class="ops">' +
+          (st.status === "running"
+            ? '<button class="warn" onclick="stPause(' + st.no + ')">暂停</button>'
+            : '<button class="primary" onclick="stResume(' + st.no + ')">继续</button>') +
+          '<button class="green" onclick="stCheckoutOpen(' + st.no + ')">结账</button>' +
+        '</div>';
+    }
+    g.appendChild(d);
+  });
+  var modeName = { exact:"按分钟精确计费", q15:"每15分钟一档", q30:"每30分钟一档", h1:"按小时计费" }[state.settings.mode];
+  document.getElementById("ruleHint").textContent =
+    "当前计费：单价 " + state.settings.price + " 元/小时 · " + modeName + " · 每单免费暂停 " + state.settings.pauseFree + " 分钟（超出照常计费）。计费设置在「更多」里改。";
+}
+function tickStations(){
+  if(!document.getElementById("pg-time").classList.contains("active")) return;
+  var now = Date.now();
+  state.stations.forEach(function(st){
+    if(st.status === "idle") return;
+    var tm = document.getElementById("tm-" + st.no), fe = document.getElementById("fee-" + st.no);
+    if(tm) tm.textContent = fmtDur(stActiveMs(st, now));
+    if(fe) fe.textContent = "当前 " + money(stFee(st, now));
+  });
+}
+setInterval(tickStations, 1000);
+function stStart(no){ var st = getSt(no); st.status = "running"; st.start = Date.now(); st.pausedAccum = 0; st.pauseStart = 0; save(); renderStations(); }
+function stPause(no){ var st = getSt(no); if(st.status !== "running") return; st.status = "paused"; st.pauseStart = Date.now(); save(); renderStations(); }
+function stResume(no){ var st = getSt(no); if(st.status !== "paused") return; st.pausedAccum += Date.now() - st.pauseStart; st.pauseStart = 0; st.status = "running"; save(); renderStations(); }
+function pickPay(btn){
+  payMethod = btn.getAttribute("data-pay");
+  var bs = document.getElementById("payOpts").children;
+  for(var i=0;i<bs.length;i++) bs[i].classList.toggle("on", bs[i]===btn);
+}
+function stCheckoutOpen(no){
+  var st = getSt(no); if(!st || st.status === "idle") return;
+  payStation = no;
+  var now = Date.now();
+  var fee = stFee(st, now);
+  document.getElementById("paySt").textContent = no + " 号工位";
+  document.getElementById("payDetail").innerHTML =
+    "计费时长：" + fmtDur(stActiveMs(st, now)) + "（" + fmtMin(stActiveMs(st, now)) + " 分钟）<br>" +
+    "暂停总时长：" + fmtMin(stPausedMs(st, now)) + " 分钟（免费额度 " + state.settings.pauseFree + " 分钟）<br>" +
+    "单价：" + state.settings.price + " 元/小时";
+  document.getElementById("payTotal").textContent = money(fee);
+  document.getElementById("payActual").value = fee.toFixed(2);
+  show("payMask");
+}
+function doCheckout(){
+  var st = getSt(payStation); if(!st) return;
+  var actual = parseFloat(document.getElementById("payActual").value);
+  if(isNaN(actual) || actual < 0){ alert("实收金额不对"); return; }
+  var now = new Date();
+  state.bills.push({
+    id: state.nextBill++, station: payStation,
+    minutes: fmtMin(stActiveMs(st, Date.now())),
+    fee: stFee(st, Date.now()), actual: actual, pay: payMethod,
+    date: todayStr(now), time: ("0"+now.getHours()).slice(-2) + ":" + ("0"+now.getMinutes()).slice(-2)
+  });
+  st.status = "idle"; st.start = 0; st.pausedAccum = 0; st.pauseStart = 0;
+  save(); hide("payMask"); renderStations(); renderBills();
+  alert("结账完成，已记入今日账单");
+}
+function renderBills(){
+  var date = todayStr();
+  var list = state.bills.filter(function(b){ return b.date === date; });
+  var box = document.getElementById("billList"); box.innerHTML = "";
+  var total = 0;
+  if(!list.length) box.innerHTML = '<div class="empty">今天还没有结账记录</div>';
+  list.slice().reverse().forEach(function(b){
+    total += b.actual;
+    var li = document.createElement("div"); li.className = "li";
+    li.innerHTML = '<div class="t"><b>' + b.station + ' 号工位</b> · ' + esc(b.pay) + '<small>' + b.time + ' · 计费 ' + b.minutes + ' 分钟</small></div>';
+    var right = document.createElement("div");
+    right.innerHTML = '<span class="amt" style="color:var(--green)">' + money(b.actual) + '</span>';
+    var del = document.createElement("button"); del.className = "del"; del.textContent = "作废";
+    del.onclick = function(){ if(confirm("确定作废这张账单吗？")){ state.bills = state.bills.filter(function(x){ return x.id !== b.id; }); save(); renderBills(); } };
+    right.appendChild(del);
+    li.appendChild(right);
+    box.appendChild(li);
+  });
+  document.getElementById("billTotal").textContent = money(total);
+}
+
+/* ================= 寄存与统计 ================= */
+function openDepForm(){
+  document.getElementById("depName").value = ""; document.getElementById("depPhone").value = "";
+  document.getElementById("depShelf").value = ""; document.getElementById("depNote").value = "";
+  show("depMask");
+}
+function saveDep(){
+  var name = document.getElementById("depName").value.trim();
+  if(!name){ alert("姓名不能为空"); return; }
+  state.deposits.push({
+    id: state.nextDep++, name: name,
+    phone: document.getElementById("depPhone").value.trim(),
+    shelf: document.getElementById("depShelf").value.trim(),
+    note: document.getElementById("depNote").value.trim(),
+    date: todayStr(), done: false
+  });
+  save(); hide("depMask"); renderMore();
+}
+function daysSince(dateStr){
+  var a = new Date(dateStr + "T00:00:00"), b = new Date(todayStr() + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}
+function renderMore(){
+  var today = todayStr(), ym = today.slice(0, 7);
+  var inT = 0, inM = 0, cntT = 0;
+  state.bills.forEach(function(b){ if(b.date === today){ inT += b.actual; cntT++; } if(b.date.indexOf(ym) === 0) inM += b.actual; });
+  document.getElementById("statToday").textContent = money(inT);
+  document.getElementById("statMonth").textContent = money(inM);
+  document.getElementById("statBills").textContent = cntT;
+  var active = state.deposits.filter(function(d){ return !d.done; });
+  document.getElementById("statDeps").textContent = active.length;
+  var box = document.getElementById("depList"); box.innerHTML = "";
+  if(!state.deposits.length) box.innerHTML = '<div class="empty">还没有寄存记录</div>';
+  state.deposits.slice().reverse().forEach(function(d){
+    var days = daysSince(d.date);
+    var li = document.createElement("div"); li.className = "li";
+    var status = d.done? "已取走" : (days > 7? '<span class="overdue">已存 ' + days + ' 天，超期了</span>' : "已存 " + days + " 天");
+    li.innerHTML = '<div class="t"><b>' + esc(d.name) + '</b>' + (d.phone? " · 尾号 " + esc(d.phone) : "") +
+      '<small>' + d.date + " 寄存" + (d.shelf? " · " + esc(d.shelf) : "") + (d.note? " · " + esc(d.note) : "") + " · " + status + '</small></div>';
+    var right = document.createElement("div");
+    if(!d.done){
+      var tk = document.createElement("button"); tk.className = "edit"; tk.textContent = "取走";
+      tk.onclick = function(){ d.done = true; save(); renderMore(); };
+      right.appendChild(tk);
+    }
+    var del = document.createElement("button"); del.className = "del"; del.textContent = "删";
+    del.onclick = function(){ if(confirm("删除这条寄存记录？")){ state.deposits = state.deposits.filter(function(x){ return x.id !== d.id; }); save(); renderMore(); } };
+    right.appendChild(del);
+    li.appendChild(right);
+    box.appendChild(li);
+  });
+  document.getElementById("setPrice").value = state.settings.price;
+  document.getElementById("setMode").value = state.settings.mode;
+  document.getElementById("setPauseFree").value = state.settings.pauseFree;
+}
+function saveSettings(){
+  var price = parseFloat(document.getElementById("setPrice").value);
+  var pf = parseInt(document.getElementById("setPauseFree").value, 10);
+  if(isNaN(price) || price < 0){ alert("单价不对"); return; }
+  if(isNaN(pf) || pf < 0){ alert("免费暂停分钟不对"); return; }
+  state.settings.price = price;
+  state.settings.mode = document.getElementById("setMode").value;
+  state.settings.pauseFree = pf;
+  save(); alert("设置已保存"); renderStations();
+}
+
+/* ================= 备份 ================= */
+function exportData(){
+  var fname = "拼豆助手备份-" + todayStr() + ".json";
+  if(window.AndroidBridge && AndroidBridge.saveFile){ AndroidBridge.saveFile(fname, JSON.stringify(state)); return; }
+  var blob = new Blob([JSON.stringify(state)], {type:"application/json"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+function importData(ev){
+  var f = ev.target.files[0]; if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var d = JSON.parse(r.result);
+      if(!d.patterns || !d.stations || !d.bills || !d.settings) throw new Error("bad");
+      state = d; save();
+      drawPattern(); renderUsage(); renderMore();
+      alert("导入成功，数据已恢复");
+    }catch(e){ alert("这个文件不是有效的备份"); }
+  };
+  r.readAsText(f);
+  ev.target.value = "";
+}
+
+/* ================= 密码锁 ================= */
+var lockMode = "unlock", pinBuf = "", pinTemp = "", lockDone = null;
+function hashPin(p){ var h = 5381; for(var i=0;i<p.length;i++){ h = ((h<<5)+h+p.charCodeAt(i))>>>0; } return "h" + h.toString(16); }
+function showLock(mode, done){
+  lockMode = mode; lockDone = done||null; pinBuf = "";
+  var tip = document.getElementById("lockTip");
+  if(mode==="setup") tip.textContent = "第一次使用，请设置 4 位数字密码";
+  else if(mode==="setup2") tip.textContent = "再输入一次新密码确认";
+  else if(mode==="changeNew") tip.textContent = "输入新的 4 位数字密码";
+  else tip.textContent = "输入密码进入";
+  document.getElementById("lockErr").textContent = "";
+  document.getElementById("lockScreen").style.display = "flex";
+  drawDots();
+}
+function hideLock(){ document.getElementById("lockScreen").style.display = "none"; }
+function drawDots(){ var ds = document.getElementById("lockDots").children; for(var i=0;i<4;i++) ds[i].className = (i<pinBuf.length)? "f":""; }
+function lockErr(msg){ document.getElementById("lockErr").textContent = msg; pinBuf = ""; drawDots(); }
+function padPress(k){
+  if(k==="clear"){ pinBuf = ""; drawDots(); return; }
+  if(k==="del"){ pinBuf = pinBuf.slice(0,-1); drawDots(); return; }
+  if(pinBuf.length>=4) return;
+  pinBuf += k; drawDots();
+  if(pinBuf.length===4) setTimeout(lockSubmit, 130);
+}
+function lockSubmit(){
+  var v = pinBuf;
+  if(lockMode==="setup"){ pinTemp = v; showLock("setup2", lockDone); return; }
+  if(lockMode==="setup2"){
+    if(v===pinTemp){ state.pinHash = hashPin(v); save(); hideLock(); if(lockDone) lockDone(true); }
+    else { pinTemp = ""; showLock("setup", lockDone); document.getElementById("lockErr").textContent = "两次输入不一致，请重新设置"; }
+    return;
+  }
+  if(lockMode==="changeNew"){ state.pinHash = hashPin(v); save(); hideLock(); alert("密码已修改"); if(lockDone) lockDone(true); return; }
+  if(hashPin(v)===state.pinHash){ hideLock(); if(lockDone) lockDone(true); }
+  else lockErr("密码不对，再试一次");
+}
+function changePin(){
+  if(!state.pinHash){ showLock("setup"); return; }
+  showLock("unlock", function(ok){ if(ok) showLock("changeNew"); });
+}
+function disablePin(){
+  if(!state.pinHash){ alert("现在没有设置密码"); return; }
+  showLock("unlock", function(ok){ if(ok){ delete state.pinHash; save(); alert("密码已关闭，下次打开不再询问"); } });
+}
+
+/* ================= 初始化 ================= */
+if(state.patterns.length){
+  var p0 = state.patterns[state.patterns.length - 1];
+  cur = { w:p0.w, h:p0.h, cells:p0.cells.slice() };
+}
+drawPattern(); renderUsage(); buildPalBar();
+if(state.pinHash) showLock("unlock"); else showLock("setup");
+</script>
+</body>
+</html>
