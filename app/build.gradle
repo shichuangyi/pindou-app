@@ -1,0 +1,24 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.local.pindou'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.local.pindou'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+}
+
+
+
+
+
+
+
+
+
+
